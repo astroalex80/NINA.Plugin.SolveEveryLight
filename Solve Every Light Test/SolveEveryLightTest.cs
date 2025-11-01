@@ -14,7 +14,7 @@ using NINA.Profile.Interfaces;
 using NINA.WPF.Base.Interfaces.Mediator;
 using NINA.WPF.Base.Interfaces.ViewModel;
 
-namespace NINA.Plugin.SolveEveryLightSolverTest
+namespace NINA.Plugin.SolveEveryLight.Test
 {
     internal class SolveEveryLightPluginTest
     {
@@ -114,8 +114,9 @@ namespace NINA.Plugin.SolveEveryLightSolverTest
 
         [Test]
         [TestCase(false, "LIGHT", false, FileTypeEnum.FITS)]    // plugin disabled
-        [TestCase(true, "LIGHT", false, FileTypeEnum.RAW)]      // PAW file
-        [TestCase(true, "LIGHT", false, FileTypeEnum.TIFF)]     // TIFF file
+        [TestCase(true, "LIGHT", false, FileTypeEnum.RAW)]      // plugin enabled, RAW file
+        [TestCase(true, "LIGHT", false, FileTypeEnum.TIFF)]     // plugin enabled, TIFF file
+        [TestCase(true, "SNAPSHOT", true, FileTypeEnum.RAW)]    // plugin enabled, snapshot enabled, RAW file
         [TestCase(true, "SNAPSHOT", false, FileTypeEnum.FITS)]  // Snapshot
         public async Task ShouldNotSolve(bool pluginEnabled, string frameType, bool snapShotsEnabled, FileTypeEnum fileType)
         {
@@ -190,7 +191,7 @@ namespace NINA.Plugin.SolveEveryLightSolverTest
 
         private static async Task InvokeBeforeImageSaved(SolveEveryLightSolver solver, BeforeImageSavedEventArgs args)
         {
-            var mi = typeof(SolveEveryLightSolver).GetMethod("ImageSaveMediator_BeforeImageSaved",
+            var mi = typeof(SolveEveryLightSolver).GetMethod("BeforeImageSavedAsync",
                 System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
             Assert.That(mi, Is.Not.Null);
             var task = mi.Invoke(solver, new object[] { null, args }) as Task;

@@ -27,13 +27,9 @@ public class SolveEveryLightPlugin : PluginBase, INotifyPropertyChanged {
 
     private readonly IProfileService profileService;
 
-    //private readonly IImageSaveMediator imageSaveMediator;
     private readonly IPlateSolverFactory plateSolverFactory;
 
-    //private readonly IPlateSolver plateSolver;
     private readonly IApplicationStatusMediator applicationStatusMediator;
-    private string pluginName;
-    private string pluginVersion;
 
     public IProfileService ProfileService => profileService;
     public IPlateSolverFactory PlateSolverFactory => plateSolverFactory;
@@ -49,9 +45,6 @@ public class SolveEveryLightPlugin : PluginBase, INotifyPropertyChanged {
             Settings.Default.UpdateSettings = false;
             CoreUtil.SaveSettings(Settings.Default);
         }
-
-        pluginName = this.Name;
-        pluginVersion = this.Version.ToString();
 
         // This helper class can be used to store plugin settings that are dependent on the current profile
         this.pluginSettings = new PluginOptionsAccessor(profileService, Guid.Parse(this.Identifier));
@@ -78,9 +71,7 @@ public class SolveEveryLightPlugin : PluginBase, INotifyPropertyChanged {
         this.profileService = profileService;
         this.pluginSettings = pluginOptionsAccessor;
     }
-
-    //internal static string IdentifierStatic => "9d4f7ba2-10f2-4373-bfcb-b4b3dcbe21db";
-
+    
     public bool PluginEnabled {
         get => pluginSettings.GetValueBoolean(nameof(PluginEnabled), Properties.Settings.Default.PluginEnabled);
         set {
