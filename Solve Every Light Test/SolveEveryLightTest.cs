@@ -16,7 +16,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace NINA.Plugin.SolveEveryLight.Test
+namespace NINA.Plugin.SolveEveryLight
 {
     internal class SolveEveryLightPluginTest : IDisposable
     {
