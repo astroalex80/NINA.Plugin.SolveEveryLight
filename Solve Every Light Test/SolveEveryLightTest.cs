@@ -186,6 +186,46 @@ namespace NINA.Plugin.SolveEveryLight.Test
             args.Image.MetaData.GenericHeaders.Should().Contain(h => h.Key == "CTYPE1");
         }
 
+        [Test]
+        [TestCase(true, "LIGHT", FileTypeEnum.FITS)]
+        public async Task ShouldSolveLimitedMetadataProvided(bool pluginEnabled, string frameType, FileTypeEnum fileType)
+        {
+            pluginOptionsAccessorMock
+                .Setup(p => p.GetValueBoolean("PluginEnabled", It.IsAny<bool>()))
+                .Returns(pluginEnabled);
+
+            imageFileSettings.FileType = fileType;
+
+            var args = CreateMockArgsLimitedMetaData(frameType);
+
+            var testResult = new PlateSolveResult
+            {
+                Success = true,
+                Pixscale = 1.0,
+                PositionAngle = 0,
+                Flipped = false,
+                Coordinates = new Coordinates(10, 10, Epoch.J2000, Coordinates.RAType.Degrees)
+            };
+
+            plateSolverMock.Setup(x => x.SolveAsync(
+                    It.IsAny<IImageData>(),
+                    It.IsAny<PlateSolveParameter>(),
+                    It.IsAny<IProgress<ApplicationStatus>>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(testResult);
+
+            await InvokeBeforeImageSaved(solver, args);
+
+            plateSolverMock.Verify(x => x.SolveAsync(
+                It.IsAny<IImageData>(),
+                It.IsAny<PlateSolveParameter>(),
+                It.IsAny<IProgress<ApplicationStatus>>(),
+                It.IsAny<CancellationToken>()), Times.Once);
+
+            args.Image.MetaData.GenericHeaders.Should().Contain(h => h.Key == "CTYPE1");
+            args.Image.MetaData.Telescope.FocalLength.Should().Be(double.NaN);
+        }
+
         private static async Task InvokeBeforeImageSaved(SolveEveryLightSolver solver, BeforeImageSavedEventArgs args)
         {
             var mi = typeof(SolveEveryLightSolver).GetMethod("BeforeImageSavedAsync",
@@ -207,7 +247,26 @@ namespace NINA.Plugin.SolveEveryLight.Test
             };
 
             image.Setup(i => i.MetaData).Returns(meta);
-            image.Setup(i => i.Properties).Returns(new ImageProperties(9576, 6388, 16, false, 1, 1));
+            image.Setup(i => i.Properties).Returns(new ImageProperties(1000, 1000, 16, false, 1, 1));
+
+            var renderedImageMock = new Mock<IRenderedImage>();
+            var renderedImageTask = Task.FromResult(renderedImageMock.Object);
+            return new BeforeImageSavedEventArgs(image.Object, renderedImageTask);
+        }
+
+        private static BeforeImageSavedEventArgs CreateMockArgsLimitedMetaData(string imageType)
+        {
+            var image = new Mock<IImageData>();
+            var meta = new ImageMetaData
+            {
+                Image = { ImageType = imageType },
+                Camera = { PixelSize = 3.76, BinX = 1 },
+                Telescope = { FocalLength = double.NaN, Coordinates = new Coordinates(double.NaN, double.NaN, Epoch.J2000, Coordinates.RAType.Degrees) },
+                Target = { Coordinates = new Coordinates(double.NaN, double.NaN, Epoch.J2000, Coordinates.RAType.Degrees) }
+            };
+
+            image.Setup(i => i.MetaData).Returns(meta);
+            image.Setup(i => i.Properties).Returns(new ImageProperties(1000, 1000, 16, false, 1, 1));
 
             var renderedImageMock = new Mock<IRenderedImage>();
             var renderedImageTask = Task.FromResult(renderedImageMock.Object);
