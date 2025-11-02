@@ -13,7 +13,7 @@ using System.Runtime.InteropServices;
 // [MANDATORY] The name of your plugin
 [assembly: AssemblyTitle("Solve Every Light")]
 // [MANDATORY] A short description of your plugin
-[assembly: AssemblyDescription("A plugin that platesolves automatically every light frame (optionally snapshots) and writes the astrometric solution to the header of FITS or XISF files.")]
+[assembly: AssemblyDescription("A plugin that plate solves automatically every light frame (optionally snapshots) and writes the astrometric solution to the header of FITS or XISF files.")]
 
 // The following attributes are not required for the plugin per se, but are required by the official manifest meta data
 
@@ -54,7 +54,7 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyMetadata("LongDescription", @"When enabled, the plugin automatically plate solves each light frame (optionally for snapshots) at runtime. 
 If no telescope/target coordinates or focal length are provided the blind solver is used. When plate solving is successful, the astrometric solution is written to the image header of FITS or XISF files.
 This is particular useful for applications such as variable star or other photometric observations and their processing, each frame to have an astrometric solution already stored. 
-NOTE: Using the plugin slightly increases the time required to save a frame, as the image is plate solved before being written to disk. Therefore only one solving attempt is made.")]
+NOTE: Using the plugin may slightly increases the time to save a frame, as the image is plate solved before being written to disk. Therefore only one solving attempt is made.")]
 
 // Setting ComVisible to false makes the types in this assembly not visible
 // to COM components.  If you need to access a type in this assembly from
