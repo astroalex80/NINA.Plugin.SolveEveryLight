@@ -1,6 +1,5 @@
 ﻿using FluentAssertions;
 using Moq;
-using Namotion.Reflection;
 using NINA.Astrometry;
 using NINA.Core.Enum;
 using NINA.Core.Model;
@@ -12,23 +11,23 @@ using NINA.Plugin.SolveEveryLight;
 using NINA.Profile;
 using NINA.Profile.Interfaces;
 using NINA.WPF.Base.Interfaces.Mediator;
-using NINA.WPF.Base.Interfaces.ViewModel;
+using System;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace NINA.Plugin.SolveEveryLight.Test
 {
-    internal class SolveEveryLightPluginTest
+    internal class SolveEveryLightPluginTest : IDisposable
     {
-
         private Mock<IImageSaveMediator> imageSaveMediatorMock;
         private Mock<IPlateSolverFactory> plateSolverFactoryMock;
         private Mock<IPlateSolver> plateSolverMock;
         private Mock<IProfileService> profileServiceMock;
-        private Mock<IApplicationStatusMediator> appStatusMediatorMock;
+        private Mock<IApplicationStatusMediator> applicationsStatusMediatorMock;
         private Mock<IPluginOptionsAccessor> pluginOptionsAccessorMock;
 
-        private SolveEveryLightPlugin plugin;
         private SolveEveryLightSolver solver;
-
         private ImageFileSettings imageFileSettings;
 
         [SetUp]
@@ -38,9 +37,9 @@ namespace NINA.Plugin.SolveEveryLight.Test
             plateSolverFactoryMock = new Mock<IPlateSolverFactory>();
             plateSolverMock = new Mock<IPlateSolver>();
             profileServiceMock = new Mock<IProfileService>();
-            appStatusMediatorMock = new Mock<IApplicationStatusMediator>();
+            applicationsStatusMediatorMock = new Mock<IApplicationStatusMediator>();
 
-            appStatusMediatorMock
+            applicationsStatusMediatorMock
                 .Setup(m => m.StatusUpdate(It.IsAny<ApplicationStatus>()))
                 .Verifiable();
 
@@ -48,13 +47,19 @@ namespace NINA.Plugin.SolveEveryLight.Test
                 .Setup(f => f.GetPlateSolver(It.IsAny<PlateSolveSettings>()))
                 .Returns(plateSolverMock.Object);
 
+            plateSolverFactoryMock
+                .Setup(f => f.GetBlindSolver(It.IsAny<PlateSolveSettings>()))
+                .Returns(plateSolverMock.Object);
+
             imageFileSettings = new ImageFileSettings { FileType = FileTypeEnum.FITS };
 
             var profile = new Mock<IProfile>();
             profile.Setup(p => p.ImageFileSettings).Returns(imageFileSettings);
-            profile.Setup(p => p.PlateSolveSettings).Returns(new PlateSolveSettings { DownSampleFactor = 2, MaxObjects = 100, SearchRadius = 2.0 });
+            profile.Setup(p => p.PlateSolveSettings)
+                   .Returns(new PlateSolveSettings { DownSampleFactor = 2, MaxObjects = 100, SearchRadius = 2.0 });
             profileServiceMock.Setup(p => p.ActiveProfile).Returns(profile.Object);
 
+            // In-Memory Store für PluginOptions-Mock
             var store = new Dictionary<string, object>();
             pluginOptionsAccessorMock = new Mock<IPluginOptionsAccessor>();
 
@@ -90,34 +95,26 @@ namespace NINA.Plugin.SolveEveryLight.Test
                 .Setup(p => p.SetValueGuid(It.IsAny<string>(), It.IsAny<Guid>()))
                 .Callback((string k, Guid val) => store[k] = val);
 
-            plugin = new SolveEveryLightPlugin(
-                profileServiceMock.Object,
-                Mock.Of<NINA.WPF.Base.Interfaces.ViewModel.IOptionsVM>(),
+
+            var settingsAdapter = new SolveEveryLightOptionsAccessor(pluginOptionsAccessorMock.Object);
+
+            solver = new SolveEveryLightSolver(
                 imageSaveMediatorMock.Object,
                 plateSolverFactoryMock.Object,
-                appStatusMediatorMock.Object,
-                pluginOptionsAccessorMock.Object,
-                appStatusMediatorMock.Object
-            );
-
-
-            var fMediator = typeof(SolveEveryLightPlugin).GetField("applicationStatusMediator",
-                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-            fMediator?.SetValue(plugin, appStatusMediatorMock.Object);
-
-            var fFactory = typeof(SolveEveryLightPlugin).GetField("plateSolverFactory",
-                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-            fFactory?.SetValue(plugin, plateSolverFactoryMock.Object);
-
-            solver = new SolveEveryLightSolver(imageSaveMediatorMock.Object, plugin);
+                applicationsStatusMediatorMock.Object,
+                profileServiceMock.Object,
+                settingsAdapter,
+                pluginName: "SolveEveryLight",
+                pluginVersion: "1.0.0-test",
+                ninaVersion: "3.x-test");
         }
 
         [Test]
         [TestCase(false, "LIGHT", false, FileTypeEnum.FITS)]    // plugin disabled
         [TestCase(true, "LIGHT", false, FileTypeEnum.RAW)]      // plugin enabled, RAW file
         [TestCase(true, "LIGHT", false, FileTypeEnum.TIFF)]     // plugin enabled, TIFF file
-        [TestCase(true, "SNAPSHOT", true, FileTypeEnum.RAW)]    // plugin enabled, snapshot enabled, RAW file
-        [TestCase(true, "SNAPSHOT", false, FileTypeEnum.FITS)]  // Snapshot
+        [TestCase(true, "SNAPSHOT", true, FileTypeEnum.RAW)]    // snapshot enabled, RAW file
+        [TestCase(true, "SNAPSHOT", false, FileTypeEnum.FITS)]  // snapshot disabled
         public async Task ShouldNotSolve(bool pluginEnabled, string frameType, bool snapShotsEnabled, FileTypeEnum fileType)
         {
             pluginOptionsAccessorMock
@@ -140,7 +137,7 @@ namespace NINA.Plugin.SolveEveryLight.Test
                 It.IsAny<IProgress<ApplicationStatus>>(),
                 It.IsAny<CancellationToken>()), Times.Never);
 
-            appStatusMediatorMock.Verify(m => m.StatusUpdate(It.IsAny<ApplicationStatus>()), Times.Never);
+            applicationsStatusMediatorMock.Verify(m => m.StatusUpdate(It.IsAny<ApplicationStatus>()), Times.Never);
         }
 
         [Test]
@@ -168,7 +165,7 @@ namespace NINA.Plugin.SolveEveryLight.Test
                 Pixscale = 1.0,
                 PositionAngle = 0,
                 Flipped = false,
-                Coordinates = new NINA.Astrometry.Coordinates(10, 10, Epoch.J2000, Coordinates.RAType.Degrees)
+                Coordinates = new Coordinates(10, 10, Epoch.J2000, Coordinates.RAType.Degrees)
             };
 
             plateSolverMock.Setup(x => x.SolveAsync(
@@ -201,13 +198,14 @@ namespace NINA.Plugin.SolveEveryLight.Test
         private static BeforeImageSavedEventArgs CreateMockArgs(string imageType)
         {
             var image = new Mock<IImageData>();
-            var meta = new ImageMetaData();
-            meta.Image.ImageType = imageType;
-            meta.Camera.PixelSize = 3.76;
-            meta.Camera.BinX = 1;
-            meta.Telescope.FocalLength = 990;
-            meta.Telescope.Coordinates = new NINA.Astrometry.Coordinates(10, 10, Epoch.J2000, Coordinates.RAType.Degrees);
-            meta.Target.Coordinates = new NINA.Astrometry.Coordinates(10, 10, Epoch.J2000, Coordinates.RAType.Degrees);
+            var meta = new ImageMetaData
+            {
+                Image = { ImageType = imageType },
+                Camera = { PixelSize = 3.76, BinX = 1 },
+                Telescope = { FocalLength = 990, Coordinates = new Coordinates(10, 10, Epoch.J2000, Coordinates.RAType.Degrees) },
+                Target = { Coordinates = new Coordinates(10, 10, Epoch.J2000, Coordinates.RAType.Degrees) }
+            };
+
             image.Setup(i => i.MetaData).Returns(meta);
             image.Setup(i => i.Properties).Returns(new ImageProperties(9576, 6388, 16, false, 1, 1));
 
@@ -216,7 +214,10 @@ namespace NINA.Plugin.SolveEveryLight.Test
             return new BeforeImageSavedEventArgs(image.Object, renderedImageTask);
         }
 
-
-
+        public void Dispose()
+        {
+            solver?.Dispose();
+            imageSaveMediatorMock.Object.Shutdown();
+        }
     }
 }

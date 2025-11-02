@@ -1,13 +1,18 @@
-﻿using NINA.Astrometry;
+﻿using Grpc.Core;
+using NINA.Astrometry;
 using NINA.Core.Enum;
 using NINA.Core.Model;
 using NINA.Core.Utility;
 using NINA.Core.Utility.Notification;
+using NINA.Core.Utility.WindowService;
 using NINA.Image.ImageData;
 using NINA.Image.Interfaces;
 using NINA.PlateSolving;
 using NINA.PlateSolving.Interfaces;
+using NINA.Plugin.ManifestDefinition;
+using NINA.Profile.Interfaces;
 using NINA.WPF.Base.Interfaces.Mediator;
+using NINA.WPF.Base.Mediator;
 using System;
 using System.Diagnostics;
 using System.Reflection;
@@ -16,34 +21,49 @@ using System.Threading.Tasks;
 using Xceed.Wpf.Toolkit.Core.Converters;
 
 namespace NINA.Plugin.SolveEveryLight {
-    public class SolveEveryLightSolver {
-        private readonly SolveEveryLightPlugin plugin;
+
+    public class SolveEveryLightSolver : IDisposable {
+
+        private readonly IImageSaveMediator imageSaveMediator;
+        private readonly IPlateSolverFactory plateSolverFactory;
+        private readonly IApplicationStatusMediator applicationStatusMediator;
+        private readonly IProfileService profileService;
+        private readonly ISolveEveryLightOptions settings;
+
         private readonly string pluginName;
         private readonly string pluginVersion;
         private readonly string ninaVersion;
-        private readonly IApplicationStatusMediator applicationStatusMediator;
+
         private readonly ApplicationStatus applicationStatus;
 
-        public SolveEveryLightSolver(IImageSaveMediator imageSaveMediator, SolveEveryLightPlugin plugin) {
+        public SolveEveryLightSolver(
+            IImageSaveMediator imageSaveMediator,
+            IPlateSolverFactory plateSolverFactory,
+            IApplicationStatusMediator applicationStatusMediator,
+            IProfileService profileService,
+            ISolveEveryLightOptions settings,
+            string pluginName,
+            string pluginVersion,
+            string ninaVersion) {
+            this.imageSaveMediator = imageSaveMediator;
+            this.plateSolverFactory = plateSolverFactory;
+            this.applicationStatusMediator = applicationStatusMediator;
+            this.applicationStatus = new ApplicationStatus();
+            this.profileService = profileService;
+            this.settings = settings;
 
-            this.plugin = plugin;
-            this.pluginName = plugin.Name;
-
-            Assembly asm = typeof(SolveEveryLightPlugin).Assembly;
-            this.pluginVersion = asm.GetName().Version?.ToString();
-
-            this.ninaVersion = CoreUtil.Version;
+            this.pluginName = pluginName;
+            this.pluginVersion = pluginVersion;
+            this.ninaVersion = ninaVersion;
 
             imageSaveMediator.BeforeImageSaved += BeforeImageSavedAsync;
-            this.applicationStatusMediator = plugin.ApplicationStatusMediator;
-            this.applicationStatus = new ApplicationStatus();
         }
 
         private async Task BeforeImageSavedAsync(object sender, BeforeImageSavedEventArgs e) {
 
-            if (!plugin.PluginEnabled) return;
+            if (!settings.PluginEnabled) return;
 
-            FileTypeEnum fileType = plugin.ProfileService.ActiveProfile.ImageFileSettings.FileType;
+            FileTypeEnum fileType = profileService.ActiveProfile.ImageFileSettings.FileType;
 
             if (fileType != FileTypeEnum.FITS && fileType != FileTypeEnum.XISF) return;
 
@@ -51,77 +71,90 @@ namespace NINA.Plugin.SolveEveryLight {
             bool isLight = imageType.Equals("LIGHT", StringComparison.OrdinalIgnoreCase);
             bool isSnapshot = imageType.Equals("SNAPSHOT", StringComparison.OrdinalIgnoreCase);
 
-            if (!isLight && (!plugin.SnapshotsEnabled || !isSnapshot)) return;
+            if (!isLight && (!settings.SnapshotsEnabled || !isSnapshot)) return;
 
             try {
 
                 Stopwatch stopwatch = Stopwatch.StartNew();
 
-                applicationStatus.Source = $"Plugin {pluginName}";
-                applicationStatus.Status = "Plate solving";
-                applicationStatusMediator.StatusUpdate(applicationStatus);
+                int downsampleFactor = profileService.ActiveProfile.PlateSolveSettings.DownSampleFactor;
+                int maxObjects = profileService.ActiveProfile.PlateSolveSettings.MaxObjects;
+                double searchRadius = profileService.ActiveProfile.PlateSolveSettings.SearchRadius;
 
-                int downsampleFactor = plugin.ProfileService.ActiveProfile.PlateSolveSettings.DownSampleFactor;
-                int maxObjects = plugin.ProfileService.ActiveProfile.PlateSolveSettings.MaxObjects;
-                double searchRadius = plugin.ProfileService.ActiveProfile.PlateSolveSettings.SearchRadius;
-
-                if (plugin.OptimizedSolverParameterEnabled) {
-                    downsampleFactor = plugin.DownSampleFactor;
-                    searchRadius = plugin.SearchRadius;
-                    maxObjects = plugin.MaxObjects;
+                if (settings.OptimizedSolverParameterEnabled) {
+                    downsampleFactor = settings.DownSampleFactor;
+                    searchRadius = settings.SearchRadius;
+                    maxObjects = settings.MaxObjects;
                 }
 
-                Coordinates telescopeCoords = e.Image?.MetaData?.Telescope?.Coordinates;
-                Coordinates targetCoords = e.Image?.MetaData?.Target?.Coordinates;
+                Coordinates telescopeCoords = e.Image.MetaData.Telescope.Coordinates;
+                Coordinates targetCoords = e.Image.MetaData.Target.Coordinates;
 
-                double ra = telescopeCoords?.RA ?? targetCoords?.RA ?? 0.0;
-                double dec = telescopeCoords?.Dec ?? targetCoords?.Dec ?? 0.0;
+                double ra = !double.IsNaN(telescopeCoords.RADegrees) ? telescopeCoords.RADegrees
+                    : (!double.IsNaN(targetCoords.RADegrees) ? targetCoords.RADegrees : 0.00);
 
-                var telescopeEpoch = e.Image?.MetaData?.Telescope?.Coordinates?.Epoch;
+                double dec = !double.IsNaN(telescopeCoords.Dec) ? telescopeCoords.Dec
+                    : (!double.IsNaN(targetCoords.Dec) ? targetCoords.Dec : 0.00);
+
+                double fl = e.Image.MetaData.Telescope.FocalLength;
+                double focalLength = (!double.IsNaN(fl)) ? fl : 0.0;
+
+                var telescopeEpoch = e.Image.MetaData.Telescope.Coordinates?.Epoch;
                 Epoch epoch = telescopeEpoch ?? Epoch.J2000;
-                
-                double? fl = e.Image?.MetaData?.Telescope?.FocalLength;
-                double focalLength = fl ?? 500;
-                
-                    PlateSolveParameter plateSolveParameter = new() {
-                        Binning = e.Image.MetaData.Camera.BinX,
-                        BlindFailoverEnabled = false,
-                        Coordinates = new Coordinates(
-                            ra, dec,
-                            epoch,
-                            Coordinates.RAType.Hours),
-                        DisableNotifications = !plugin.NotificationsEnabled,
-                        DownSampleFactor = downsampleFactor,
-                        FocalLength = focalLength,
-                        MaxObjects = maxObjects,
-                        PixelSize = e.Image.MetaData.Camera.PixelSize,
-                        Regions = plugin.ProfileService.ActiveProfile.PlateSolveSettings.Regions,
-                        SearchRadius = searchRadius
-                    };
 
-                    IPlateSolver solver =
-                        plugin.PlateSolverFactory.GetPlateSolver(plugin.ProfileService.ActiveProfile.PlateSolveSettings);
 
-                    IProgress<ApplicationStatus> progress = null;
+                PlateSolveParameter plateSolveParameter = new() {
+                    Binning = e.Image.MetaData.Camera.BinX,
+                    BlindFailoverEnabled = false,
+                    Coordinates = new Coordinates(
+                        ra, dec,
+                        epoch,
+                        Coordinates.RAType.Degrees),
+                    DisableNotifications = !settings.NotificationsEnabled,
+                    DownSampleFactor = downsampleFactor,
+                    FocalLength = focalLength,
+                    MaxObjects = maxObjects,
+                    PixelSize = e.Image.MetaData.Camera.PixelSize,
+                    Regions = profileService.ActiveProfile.PlateSolveSettings.Regions,
+                    SearchRadius = searchRadius
+                };
 
-                    CancellationToken ct = CancellationToken.None;
+                applicationStatus.Source = $"Plugin {pluginName}";
 
-                    PlateSolveResult result = await solver.SolveAsync(e.Image, plateSolveParameter, progress, ct);
+                IPlateSolver solver;
 
-                    if (result?.Success == true) {
-                        AddWcsHeader(e.Image, result, this);
+                if (ra != 0.00 && dec != 0.00 && focalLength != 0.0) {
+                    solver = plateSolverFactory.GetPlateSolver(profileService.ActiveProfile.PlateSolveSettings);
+                    applicationStatus.Status = "Plate solving";
 
-                        stopwatch.Stop();
-                        double elapsedSeconds = Math.Round((stopwatch.Elapsed.TotalMilliseconds / 1000), 3);
+                } else {
+                    solver = plateSolverFactory.GetBlindSolver(profileService.ActiveProfile.PlateSolveSettings);
+                    // plateSolveParameter.SearchRadius = 180;
+                    applicationStatus.Status = "Plate solving using blind solver";
+                }
 
-                        Logger.Info(
-                            $"Plate solved {e.Image.MetaData.Image.ImageType} {e.Image.MetaData.Image.Id} and stored solution in header. Coordinates RA: {result.Coordinates.RAString} DEC: {result.Coordinates.DecString} Time to solve and write wcs header: {elapsedSeconds} sec.");
+                applicationStatusMediator.StatusUpdate(applicationStatus);
 
-                        return;
-                    } else {
-                        Logger.Error(
-                            $"Plate solving of {e.Image.MetaData.Image.ImageType} {e.Image.MetaData.Image.Id} failed");
-                    }
+                IProgress<ApplicationStatus> progress = null;
+
+                CancellationToken ct = CancellationToken.None;
+
+                PlateSolveResult result = await solver.SolveAsync(e.Image, plateSolveParameter, progress, ct);
+
+                if (result?.Success == true) {
+                    AddWcsHeader(e.Image, result, pluginName, pluginVersion, ninaVersion);
+
+                    stopwatch.Stop();
+                    double elapsedSeconds = Math.Round((stopwatch.Elapsed.TotalMilliseconds / 1000), 3);
+
+                    Logger.Info(
+                        $"Plate solved {e.Image.MetaData.Image.ImageType} {e.Image.MetaData.Image.Id} and stored solution in header. Coordinates RA: {result.Coordinates.RAString} DEC: {result.Coordinates.DecString} Time to solve and write wcs header: {elapsedSeconds} sec.");
+
+                    return;
+                } else {
+                    Logger.Error(
+                        $"Plate solving of {e.Image.MetaData.Image.ImageType} {e.Image.MetaData.Image.Id} failed");
+                }
 
             } catch (Exception ex) {
                 Notification.ShowError("Could not solve image. Error message: " + ex.Message);
@@ -133,7 +166,7 @@ namespace NINA.Plugin.SolveEveryLight {
             }
         }
 
-        private static void AddWcsHeader(IImageData image, PlateSolveResult result, SolveEveryLightSolver plugin) {
+        private static void AddWcsHeader(IImageData image, PlateSolveResult result, string pluginName, string pluginVersion, string ninaVersion) {
             double scaleDegPerPix = result.Pixscale / 3600.0;
             double paRad = result.PositionAngle * Math.PI / 180.0;
             double flip = result.Flipped ? -1.0 : 1.0;
@@ -162,7 +195,11 @@ namespace NINA.Plugin.SolveEveryLight {
             image.MetaData.GenericHeaders.Add(new DoubleMetaDataHeader("CDELT2", Math.Abs(scaleDegPerPix), "Y pixel size (deg)"));
             image.MetaData.GenericHeaders.Add(new DoubleMetaDataHeader("CROTA1", result.PositionAngle, "Image twist X axis (deg)"));
             image.MetaData.GenericHeaders.Add(new DoubleMetaDataHeader("CROTA2", result.PositionAngle, "Image twist Y axis (deg)"));
-            image.MetaData.GenericHeaders.Add(new StringMetaDataHeader("PLTSOLVD", "T", $"N.I.N.A. {plugin.ninaVersion} Plugin: {plugin.pluginName} {plugin.pluginVersion}"));
+            image.MetaData.GenericHeaders.Add(new StringMetaDataHeader("PLTSOLVD", "T", $"N.I.N.A. {ninaVersion} Plugin: {pluginName} Version: {pluginVersion}"));
+        }
+
+        public void Dispose() {
+            imageSaveMediator.BeforeImageSaved -= BeforeImageSavedAsync;
         }
     }
 }

@@ -51,8 +51,8 @@ using System.Runtime.InteropServices;
 //[Optional] An additional url to an example example screenshot of your plugin in action
 [assembly: AssemblyMetadata("AltScreenshotURL", "")]
 //[Optional] An in-depth description of your plugin
-[assembly: AssemblyMetadata("LongDescription", @"When enabled, the plugin automatically plate solves each light frame (optionally for snapshots) at runtime.
-When plate solving is successful, the astrometric solution is written to the image header of FITS or XISF files.
+[assembly: AssemblyMetadata("LongDescription", @"When enabled, the plugin automatically plate solves each light frame (optionally for snapshots) at runtime. 
+If no telescope/target coordinates or focal length are provided the blind solver is used. When plate solving is successful, the astrometric solution is written to the image header of FITS or XISF files.
 This is particular useful for applications such as variable star or other photometric observations and their processing, each frame to have an astrometric solution already stored. 
 NOTE: Using the plugin slightly increases the time required to save a frame, as the image is plate solved before being written to disk. Therefore only one solving attempt is made.")]
 
