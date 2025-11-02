@@ -23,7 +23,7 @@ env:
   # Your solution name
   PLUGIN_SLN_NAME: "NINA.Plugin.SolveEveryLight"
   # The name of the resulting dll file
-  PLUGIN_DLL_NAME: "NINA.Plugin.SolveEveryLight.dll"
+  PLUGIN_DLL_NAME: "NINA.Plugin.SolveEveryLight"
   # The relative path to your manifest folder inside the manifest repository
   PLUGIN_MANIFEST_PATH: "s/Solve Every Light"
 
