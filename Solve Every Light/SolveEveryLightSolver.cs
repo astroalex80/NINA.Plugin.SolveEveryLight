@@ -61,6 +61,8 @@ namespace NINA.Plugin.SolveEveryLight {
 
         private async Task BeforeImageSavedAsync(object sender, BeforeImageSavedEventArgs e) {
 
+            if (e.Image == null) return;
+
             if (!settings.PluginEnabled) return;
 
             FileTypeEnum fileType = profileService.ActiveProfile.ImageFileSettings.FileType;
@@ -87,24 +89,32 @@ namespace NINA.Plugin.SolveEveryLight {
                     maxObjects = settings.MaxObjects;
                 }
 
-                Coordinates telescopeCoords = e.Image.MetaData.Telescope.Coordinates;
-                Coordinates targetCoords = e.Image.MetaData.Target.Coordinates;
+                int binning = e.Image?.MetaData?.Camera?.BinX ?? 1;
 
-                double ra = !double.IsNaN(telescopeCoords.RADegrees) ? telescopeCoords.RADegrees
-                    : (!double.IsNaN(targetCoords.RADegrees) ? targetCoords.RADegrees : 0.00);
+                Coordinates? telescopeCoords = e.Image?.MetaData?.Telescope?.Coordinates;
+                Coordinates? targetCoords = e.Image?.MetaData?.Target?.Coordinates;
 
-                double dec = !double.IsNaN(telescopeCoords.Dec) ? telescopeCoords.Dec
-                    : (!double.IsNaN(targetCoords.Dec) ? targetCoords.Dec : 0.00);
+                static double? FiniteOrNull(double? v) =>
+                    v.HasValue && !double.IsNaN(v.Value) && !double.IsInfinity(v.Value) ? v.Value : (double?)null;
 
-                double fl = e.Image.MetaData.Telescope.FocalLength;
-                double focalLength = (!double.IsNaN(fl)) ? fl : 0.0;
+                double ra = FiniteOrNull(telescopeCoords?.RADegrees)
+                            ?? FiniteOrNull(targetCoords?.RADegrees)
+                            ?? 0.00;
 
-                var telescopeEpoch = e.Image.MetaData.Telescope.Coordinates?.Epoch;
-                Epoch epoch = telescopeEpoch ?? Epoch.J2000;
+                double dec = FiniteOrNull(telescopeCoords?.Dec)
+                             ?? FiniteOrNull(targetCoords?.Dec)
+                             ?? 0.00;
 
+                double? fl = profileService.ActiveProfile.TelescopeSettings?.FocalLength;
+
+                double focalLength = FiniteOrNull(fl) ?? 500;
+
+                Epoch epoch = e.Image?.MetaData?.Telescope?.Coordinates?.Epoch ?? Epoch.J2000;
+
+                if (ra == 0.00 && dec == 0.00) searchRadius = 180;
 
                 PlateSolveParameter plateSolveParameter = new() {
-                    Binning = e.Image.MetaData.Camera.BinX,
+                    Binning = binning,
                     BlindFailoverEnabled = false,
                     Coordinates = new Coordinates(
                         ra, dec,
@@ -117,29 +127,29 @@ namespace NINA.Plugin.SolveEveryLight {
                     PixelSize = e.Image.MetaData.Camera.PixelSize,
                     Regions = profileService.ActiveProfile.PlateSolveSettings.Regions,
                     SearchRadius = searchRadius
+
                 };
 
                 applicationStatus.Source = $"Plugin {pluginName}";
 
-                IPlateSolver solver;
+                IPlateSolver solver = plateSolverFactory.GetPlateSolver(profileService.ActiveProfile.PlateSolveSettings);
+                IImageSolver imageSolver = plateSolverFactory.GetImageSolver(solver, solver);
 
-                if (ra != 0.00 && dec != 0.00 && focalLength != 0.0) {
-                    solver = plateSolverFactory.GetPlateSolver(profileService.ActiveProfile.PlateSolveSettings);
-                    applicationStatus.Status = "Plate solving";
+                var solverType = profileService.ActiveProfile.PlateSolveSettings.PlateSolverType;
 
-                } else {
-                    solver = plateSolverFactory.GetBlindSolver(profileService.ActiveProfile.PlateSolveSettings);
-                    // plateSolveParameter.SearchRadius = 180;
-                    applicationStatus.Status = "Plate solving using blind solver";
+                if (solverType != PlateSolverEnum.ASTAP) {
+                    Notification.ShowWarning("This plugin currently works only with ASTAP. Configure it in Options > Plate Solving.");
                 }
 
+                applicationStatus.Source = $"Plugin {pluginName}";
+                applicationStatus.Status = "Plate solving";
                 applicationStatusMediator.StatusUpdate(applicationStatus);
 
                 IProgress<ApplicationStatus> progress = null;
 
                 CancellationToken ct = CancellationToken.None;
 
-                PlateSolveResult result = await solver.SolveAsync(e.Image, plateSolveParameter, progress, ct);
+                PlateSolveResult result = await imageSolver.Solve(e.Image, plateSolveParameter, progress, ct);
 
                 if (result?.Success == true) {
                     AddWcsHeader(e.Image, result, pluginName, pluginVersion, ninaVersion);
@@ -164,6 +174,7 @@ namespace NINA.Plugin.SolveEveryLight {
                 applicationStatus.Status = string.Empty;
                 applicationStatusMediator.StatusUpdate(applicationStatus);
             }
+
         }
 
         private static void AddWcsHeader(IImageData image, PlateSolveResult result, string pluginName, string pluginVersion, string ninaVersion) {
@@ -195,7 +206,8 @@ namespace NINA.Plugin.SolveEveryLight {
             image.MetaData.GenericHeaders.Add(new DoubleMetaDataHeader("CDELT2", Math.Abs(scaleDegPerPix), "Y pixel size (deg)"));
             image.MetaData.GenericHeaders.Add(new DoubleMetaDataHeader("CROTA1", result.PositionAngle, "Image twist X axis (deg)"));
             image.MetaData.GenericHeaders.Add(new DoubleMetaDataHeader("CROTA2", result.PositionAngle, "Image twist Y axis (deg)"));
-            image.MetaData.GenericHeaders.Add(new StringMetaDataHeader("PLTSOLVD", "T", $"N.I.N.A. {ninaVersion} Plugin: {pluginName} Version: {pluginVersion}"));
+            image.MetaData.GenericHeaders.Add(new StringMetaDataHeader("PLTSOLVD1", "T", $"N.I.N.A. {ninaVersion} Plugin: {pluginName}"));
+            image.MetaData.GenericHeaders.Add(new StringMetaDataHeader("PLTSOLVD2", "T", $"Plugin Version: {pluginVersion} using ASTAP"));
         }
 
         public void Dispose() {

@@ -23,6 +23,7 @@ namespace NINA.Plugin.SolveEveryLight
         private Mock<IImageSaveMediator> imageSaveMediatorMock;
         private Mock<IPlateSolverFactory> plateSolverFactoryMock;
         private Mock<IPlateSolver> plateSolverMock;
+        private Mock<IImageSolver> imageSolverMock;
         private Mock<IProfileService> profileServiceMock;
         private Mock<IApplicationStatusMediator> applicationsStatusMediatorMock;
         private Mock<IPluginOptionsAccessor> pluginOptionsAccessorMock;
@@ -36,6 +37,7 @@ namespace NINA.Plugin.SolveEveryLight
             imageSaveMediatorMock = new Mock<IImageSaveMediator>();
             plateSolverFactoryMock = new Mock<IPlateSolverFactory>();
             plateSolverMock = new Mock<IPlateSolver>();
+            imageSolverMock = new Mock<IImageSolver>();
             profileServiceMock = new Mock<IProfileService>();
             applicationsStatusMediatorMock = new Mock<IApplicationStatusMediator>();
 
@@ -46,6 +48,10 @@ namespace NINA.Plugin.SolveEveryLight
             plateSolverFactoryMock
                 .Setup(f => f.GetPlateSolver(It.IsAny<PlateSolveSettings>()))
                 .Returns(plateSolverMock.Object);
+
+            plateSolverFactoryMock
+                .Setup(f => f.GetImageSolver(It.IsAny<IPlateSolver>(), It.IsAny<IPlateSolver>()))
+                .Returns(imageSolverMock.Object);
 
             plateSolverFactoryMock
                 .Setup(f => f.GetBlindSolver(It.IsAny<PlateSolveSettings>()))
@@ -131,7 +137,7 @@ namespace NINA.Plugin.SolveEveryLight
 
             await InvokeBeforeImageSaved(solver, args);
 
-            plateSolverMock.Verify(x => x.SolveAsync(
+            imageSolverMock.Verify(x => x.Solve(
                 It.IsAny<IImageData>(),
                 It.IsAny<PlateSolveParameter>(),
                 It.IsAny<IProgress<ApplicationStatus>>(),
@@ -168,7 +174,7 @@ namespace NINA.Plugin.SolveEveryLight
                 Coordinates = new Coordinates(10, 10, Epoch.J2000, Coordinates.RAType.Degrees)
             };
 
-            plateSolverMock.Setup(x => x.SolveAsync(
+            imageSolverMock.Setup(x => x.Solve(
                     It.IsAny<IImageData>(),
                     It.IsAny<PlateSolveParameter>(),
                     It.IsAny<IProgress<ApplicationStatus>>(),
@@ -177,7 +183,7 @@ namespace NINA.Plugin.SolveEveryLight
 
             await InvokeBeforeImageSaved(solver, args);
 
-            plateSolverMock.Verify(x => x.SolveAsync(
+            imageSolverMock.Verify(x => x.Solve(
                     It.IsAny<IImageData>(),
                     It.IsAny<PlateSolveParameter>(),
                     It.IsAny<IProgress<ApplicationStatus>>(),
@@ -207,7 +213,7 @@ namespace NINA.Plugin.SolveEveryLight
                 Coordinates = new Coordinates(10, 10, Epoch.J2000, Coordinates.RAType.Degrees)
             };
 
-            plateSolverMock.Setup(x => x.SolveAsync(
+            imageSolverMock.Setup(x => x.Solve(
                     It.IsAny<IImageData>(),
                     It.IsAny<PlateSolveParameter>(),
                     It.IsAny<IProgress<ApplicationStatus>>(),
@@ -216,7 +222,7 @@ namespace NINA.Plugin.SolveEveryLight
 
             await InvokeBeforeImageSaved(solver, args);
 
-            plateSolverMock.Verify(x => x.SolveAsync(
+            imageSolverMock.Verify(x => x.Solve(
                 It.IsAny<IImageData>(),
                 It.IsAny<PlateSolveParameter>(),
                 It.IsAny<IProgress<ApplicationStatus>>(),
