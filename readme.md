@@ -18,7 +18,7 @@ If no telescope/target coordinates or focal length are provided the blind solver
 When plate solving is successful, the astrometric solution is written to the image header of FITS or XISF files.
 
 This is particular useful for applications such as variable star or other photometric observations and their processing, each frame to have an astrometric solution already stored. 
-NOTE: Using the plugin slightly increases the time required to save a frame, as the image is plate solved before being written to disk.
+NOTE: Using the plugin may slightly increases the time to save a frame, as the image is plate solved before being written to disk.
 
 ---
 
