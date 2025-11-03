@@ -62,10 +62,9 @@ namespace NINA.Plugin.SolveEveryLight
             var profile = new Mock<IProfile>();
             profile.Setup(p => p.ImageFileSettings).Returns(imageFileSettings);
             profile.Setup(p => p.PlateSolveSettings)
-                   .Returns(new PlateSolveSettings { DownSampleFactor = 2, MaxObjects = 100, SearchRadius = 2.0 });
+                .Returns(new PlateSolveSettings { DownSampleFactor = 2, MaxObjects = 100, SearchRadius = 2.0 });
             profileServiceMock.Setup(p => p.ActiveProfile).Returns(profile.Object);
 
-            // In-Memory Store für PluginOptions-Mock
             var store = new Dictionary<string, object>();
             pluginOptionsAccessorMock = new Mock<IPluginOptionsAccessor>();
 
@@ -116,12 +115,13 @@ namespace NINA.Plugin.SolveEveryLight
         }
 
         [Test]
-        [TestCase(false, "LIGHT", false, FileTypeEnum.FITS)]    // plugin disabled
-        [TestCase(true, "LIGHT", false, FileTypeEnum.RAW)]      // plugin enabled, RAW file
-        [TestCase(true, "LIGHT", false, FileTypeEnum.TIFF)]     // plugin enabled, TIFF file
-        [TestCase(true, "SNAPSHOT", true, FileTypeEnum.RAW)]    // snapshot enabled, RAW file
-        [TestCase(true, "SNAPSHOT", false, FileTypeEnum.FITS)]  // snapshot disabled
-        public async Task ShouldNotSolve(bool pluginEnabled, string frameType, bool snapShotsEnabled, FileTypeEnum fileType)
+        [TestCase(false, "LIGHT", false, FileTypeEnum.FITS)] // plugin disabled
+        [TestCase(true, "LIGHT", false, FileTypeEnum.RAW)] // plugin enabled, RAW file
+        [TestCase(true, "LIGHT", false, FileTypeEnum.TIFF)] // plugin enabled, TIFF file
+        [TestCase(true, "SNAPSHOT", true, FileTypeEnum.RAW)] // snapshot enabled, RAW file
+        [TestCase(true, "SNAPSHOT", false, FileTypeEnum.FITS)] // snapshot disabled
+        public async Task ShouldNotSolve(bool pluginEnabled, string frameType, bool snapShotsEnabled,
+            FileTypeEnum fileType)
         {
             pluginOptionsAccessorMock
                 .Setup(p => p.GetValueBoolean("PluginEnabled", It.IsAny<bool>()))
@@ -151,7 +151,8 @@ namespace NINA.Plugin.SolveEveryLight
         [TestCase(true, "LIGHT", false, FileTypeEnum.XISF)]
         [TestCase(true, "LIGHT", true, FileTypeEnum.FITS)]
         [TestCase(true, "SNAPSHOT", true, FileTypeEnum.FITS)]
-        public async Task ShouldSolve(bool pluginEnabled, string frameType, bool snapShotsEnabled, FileTypeEnum fileType)
+        public async Task ShouldSolve(bool pluginEnabled, string frameType, bool snapShotsEnabled,
+            FileTypeEnum fileType)
         {
             pluginOptionsAccessorMock
                 .Setup(p => p.GetValueBoolean("PluginEnabled", It.IsAny<bool>()))
@@ -184,17 +185,18 @@ namespace NINA.Plugin.SolveEveryLight
             await InvokeBeforeImageSaved(solver, args);
 
             imageSolverMock.Verify(x => x.Solve(
-                    It.IsAny<IImageData>(),
-                    It.IsAny<PlateSolveParameter>(),
-                    It.IsAny<IProgress<ApplicationStatus>>(),
-                    It.IsAny<CancellationToken>()), Times.Once);
+                It.IsAny<IImageData>(),
+                It.IsAny<PlateSolveParameter>(),
+                It.IsAny<IProgress<ApplicationStatus>>(),
+                It.IsAny<CancellationToken>()), Times.Once);
 
             args.Image.MetaData.GenericHeaders.Should().Contain(h => h.Key == "CTYPE1");
         }
 
         [Test]
         [TestCase(true, "LIGHT", FileTypeEnum.FITS)]
-        public async Task ShouldSolveLimitedMetadataProvided(bool pluginEnabled, string frameType, FileTypeEnum fileType)
+        public async Task ShouldSolveLimitedMetadataProvided(bool pluginEnabled, string frameType,
+            FileTypeEnum fileType)
         {
             pluginOptionsAccessorMock
                 .Setup(p => p.GetValueBoolean("PluginEnabled", It.IsAny<bool>()))
@@ -248,7 +250,10 @@ namespace NINA.Plugin.SolveEveryLight
             {
                 Image = { ImageType = imageType },
                 Camera = { PixelSize = 3.76, BinX = 1 },
-                Telescope = { FocalLength = 990, Coordinates = new Coordinates(10, 10, Epoch.J2000, Coordinates.RAType.Degrees) },
+                Telescope =
+                {
+                    FocalLength = 990, Coordinates = new Coordinates(10, 10, Epoch.J2000, Coordinates.RAType.Degrees)
+                },
                 Target = { Coordinates = new Coordinates(10, 10, Epoch.J2000, Coordinates.RAType.Degrees) }
             };
 
@@ -267,8 +272,15 @@ namespace NINA.Plugin.SolveEveryLight
             {
                 Image = { ImageType = imageType },
                 Camera = { PixelSize = 3.76, BinX = 1 },
-                Telescope = { FocalLength = double.NaN, Coordinates = new Coordinates(double.NaN, double.NaN, Epoch.J2000, Coordinates.RAType.Degrees) },
-                Target = { Coordinates = new Coordinates(double.NaN, double.NaN, Epoch.J2000, Coordinates.RAType.Degrees) }
+                Telescope =
+                {
+                    FocalLength = double.NaN,
+                    Coordinates = new Coordinates(double.NaN, double.NaN, Epoch.J2000, Coordinates.RAType.Degrees)
+                },
+                Target =
+                {
+                    Coordinates = new Coordinates(double.NaN, double.NaN, Epoch.J2000, Coordinates.RAType.Degrees)
+                }
             };
 
             image.Setup(i => i.MetaData).Returns(meta);

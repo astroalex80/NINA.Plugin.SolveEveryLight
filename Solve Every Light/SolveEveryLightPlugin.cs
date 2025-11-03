@@ -17,7 +17,7 @@ namespace NINA.Plugin.SolveEveryLight;
 /// <summary>
 /// This class exports the IPluginManifest interface and will be used for the general plugin information and options
 /// The base class "PluginBase" will populate all the necessary Manifest Meta Data out of the AssemblyInfo attributes. Please fill these accoringly
-/// 
+///
 /// An instance of this class will be created and set as datacontext on the plugin options tab in N.I.N.A. to be able to configure global plugin settings
 /// The user interface for the settings will be defined by a DataTemplate with the key having the naming convention "SolveEveryLight_Options" where SolveEveryLight corresponds to the AssemblyTitle - In this template example it is found in the Options.xaml
 /// </summary>
@@ -34,7 +34,6 @@ public class SolveEveryLightPlugin : PluginBase, INotifyPropertyChanged, ISolveE
         IImageSaveMediator imageSaveMediator,
         IPlateSolverFactory plateSolverFactory,
         IApplicationStatusMediator statusMediator) {
-
         if (Settings.Default.UpdateSettings) {
             Settings.Default.Upgrade();
             Settings.Default.UpdateSettings = false;
@@ -63,77 +62,6 @@ public class SolveEveryLightPlugin : PluginBase, INotifyPropertyChanged, ISolveE
 
         profileService.ProfileChanged += ProfileService_ProfileChanged;
     }
-
-
-//public class SolveEveryLightPlugin : PluginBase, INotifyPropertyChanged {
-//    private readonly IPluginOptionsAccessor pluginSettings;
-
-//    private readonly IProfileService profileService;
-
-//    public readonly string PluginName;
-
-//    public readonly string PluginVersion;
-
-//    public readonly string NinaVersion;
-
-//    //private readonly IPlateSolverFactory plateSolverFactory;
-
-//    //private readonly IApplicationStatusMediator applicationStatusMediator;
-//    public IProfileService ProfileService => profileService;
-//    //public IProfileService ProfileService;
-//    //public IPlateSolverFactory PlateSolverFactory => plateSolverFactory;
-//    //public IApplicationStatusMediator ApplicationStatusMediator => applicationStatusMediator;
-
-
-//    [ImportingConstructor]
-//    public SolveEveryLightPlugin(
-//        IProfileService profileService,
-//        IOptionsVM options,
-//        IImageSaveMediator imageSaveMediator,
-//        IPlateSolverFactory plateSolverFactory,
-//        IApplicationStatusMediator applicationStatusMediator) {
-//        if (Settings.Default.UpdateSettings) {
-//            Settings.Default.Upgrade();
-//            Settings.Default.UpdateSettings = false;
-//            CoreUtil.SaveSettings(Settings.Default);
-//        }
-
-//        // This helper class can be used to store plugin settings that are dependent on the current profile
-//        this.pluginSettings = new PluginOptionsAccessor(profileService, Guid.Parse(this.Identifier));
-//        MigrateSettings();
-//        this.profileService = profileService;
-//        // React on a changed profile
-//        profileService.ProfileChanged += ProfileService_ProfileChanged;
-
-//        this.PluginName = this.Name;
-//        this.PluginVersion = typeof(SolveEveryLightPlugin).Assembly.GetName().Version?.ToString() ?? "0.0.0";
-//        this.NinaVersion = CoreUtil.Version;
-
-//        //this.plateSolverFactory = plateSolverFactory;
-//        //this.applicationStatusMediator = applicationStatusMediator;
-//        //_solver = new SolveEveryLightSolver(imageSaveMediator, this);
-//        _ = new SolveEveryLightSolver(
-//            this,
-//            imageSaveMediator,
-//            plateSolverFactory,
-//            applicationStatusMediator
-//        );
-
-//    }
-
-    // for tests
-    //public SolveEveryLightPlugin(
-    //    IProfileService profileService,
-    //    IOptionsVM options,
-    //    IImageSaveMediator imageSaveMediator,
-    //    IPlateSolverFactory plateSolverFactory,
-    //    IApplicationStatusMediator applicationStatusMediator,
-    //    IPluginOptionsAccessor pluginOptionsAccessor,
-    //    IApplicationStatusMediator applicationStatusMediatorTest) {
-    //    this.pluginSettings = pluginOptionsAccessor;
-    //    this.profileService = profileService;
-    //    this.pluginSettings = pluginOptionsAccessor;
-    //}
 
     public bool PluginEnabled {
         get => pluginSettings.GetValueBoolean(nameof(PluginEnabled), Settings.Default.PluginEnabled);
@@ -220,7 +148,8 @@ public class SolveEveryLightPlugin : PluginBase, INotifyPropertyChanged, ISolveE
         pluginSettings.SetValueBoolean(nameof(PluginEnabled), Settings.Default.PluginEnabled);
         pluginSettings.SetValueBoolean(nameof(SnapshotsEnabled), Settings.Default.SnapshotsEnabled);
         pluginSettings.SetValueBoolean(nameof(NotificationsEnabled), Settings.Default.NotificationsEnabled);
-        pluginSettings.SetValueBoolean(nameof(OptimizedSolverParameterEnabled), Settings.Default.OptimizedSolverParameterEnabled);
+        pluginSettings.SetValueBoolean(nameof(OptimizedSolverParameterEnabled),
+            Settings.Default.OptimizedSolverParameterEnabled);
         pluginSettings.SetValueInt32(nameof(DownSampleFactor), Settings.Default.DownSampleFactor);
         pluginSettings.SetValueDouble(nameof(SearchRadius), Settings.Default.SearchRadius);
         pluginSettings.SetValueInt32(nameof(MaxObjects), Settings.Default.MaxObjects);

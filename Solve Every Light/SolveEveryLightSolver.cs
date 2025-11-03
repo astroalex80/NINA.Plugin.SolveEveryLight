@@ -23,7 +23,6 @@ using Xceed.Wpf.Toolkit.Core.Converters;
 namespace NINA.Plugin.SolveEveryLight {
 
     public class SolveEveryLightSolver : IDisposable {
-
         private readonly IImageSaveMediator imageSaveMediator;
         private readonly IPlateSolverFactory plateSolverFactory;
         private readonly IApplicationStatusMediator applicationStatusMediator;
@@ -60,7 +59,6 @@ namespace NINA.Plugin.SolveEveryLight {
         }
 
         private async Task BeforeImageSavedAsync(object sender, BeforeImageSavedEventArgs e) {
-
             if (e.Image == null) return;
 
             if (!settings.PluginEnabled) return;
@@ -76,7 +74,6 @@ namespace NINA.Plugin.SolveEveryLight {
             if (!isLight && (!settings.SnapshotsEnabled || !isSnapshot)) return;
 
             try {
-
                 Stopwatch stopwatch = Stopwatch.StartNew();
 
                 int downsampleFactor = profileService.ActiveProfile.PlateSolveSettings.DownSampleFactor;
@@ -127,12 +124,12 @@ namespace NINA.Plugin.SolveEveryLight {
                     PixelSize = e.Image.MetaData.Camera.PixelSize,
                     Regions = profileService.ActiveProfile.PlateSolveSettings.Regions,
                     SearchRadius = searchRadius
-
                 };
 
                 applicationStatus.Source = $"Plugin {pluginName}";
 
-                IPlateSolver solver = plateSolverFactory.GetPlateSolver(profileService.ActiveProfile.PlateSolveSettings);
+                IPlateSolver solver =
+                    plateSolverFactory.GetPlateSolver(profileService.ActiveProfile.PlateSolveSettings);
                 IImageSolver imageSolver = plateSolverFactory.GetImageSolver(solver, solver);
 
                 var solverType = profileService.ActiveProfile.PlateSolveSettings.PlateSolverType;
@@ -169,7 +166,6 @@ namespace NINA.Plugin.SolveEveryLight {
                     Logger.Error(
                         $"Plate solving of {e.Image.MetaData.Image.ImageType} {e.Image.MetaData.Image.Id} failed");
                 }
-
             } catch (Exception ex) {
                 Notification.ShowError("Could not solve image. Error message: " + ex.Message);
                 Logger.Error("Could not solve image. Error message: " + ex.Message);
@@ -178,10 +174,10 @@ namespace NINA.Plugin.SolveEveryLight {
                 applicationStatus.Status = string.Empty;
                 applicationStatusMediator.StatusUpdate(applicationStatus);
             }
-
         }
 
-        private static void AddWcsHeader(IImageData image, PlateSolveResult result, string pluginName, string pluginVersion, string ninaVersion) {
+        private static void AddWcsHeader(IImageData image, PlateSolveResult result, string pluginName,
+            string pluginVersion, string ninaVersion) {
             double scaleDegPerPix = result.Pixscale / 3600.0;
             double paRad = result.PositionAngle * Math.PI / 180.0;
             double flip = result.Flipped ? -1.0 : 1.0;
@@ -194,24 +190,34 @@ namespace NINA.Plugin.SolveEveryLight {
             double w = image.Properties.Width / 2.0;
             double h = image.Properties.Height / 2.0;
 
-            image.MetaData.GenericHeaders.Add(new StringMetaDataHeader("CTYPE1", "RA---TAN", "first parameter RA, projection TAN"));
-            image.MetaData.GenericHeaders.Add(new StringMetaDataHeader("CTYPE2", "DEC--TAN", "second parameter DEC, projection TAN"));
+            image.MetaData.GenericHeaders.Add(new StringMetaDataHeader("CTYPE1", "RA---TAN",
+                "first parameter RA, projection TAN"));
+            image.MetaData.GenericHeaders.Add(new StringMetaDataHeader("CTYPE2", "DEC--TAN",
+                "second parameter DEC, projection TAN"));
             image.MetaData.GenericHeaders.Add(new StringMetaDataHeader("CUNIT1", "deg", "Unit of coordinates"));
             image.MetaData.GenericHeaders.Add(new StringMetaDataHeader("CUNIT2", "deg", "Unit of coordinates"));
-            image.MetaData.GenericHeaders.Add(new DoubleMetaDataHeader("CRVAL1", result.Coordinates.RADegrees, "RA of reference pixel (deg)"));
-            image.MetaData.GenericHeaders.Add(new DoubleMetaDataHeader("CRVAL2", result.Coordinates.Dec, "DEC of reference pixel (deg)"));
+            image.MetaData.GenericHeaders.Add(new DoubleMetaDataHeader("CRVAL1", result.Coordinates.RADegrees,
+                "RA of reference pixel (deg)"));
+            image.MetaData.GenericHeaders.Add(new DoubleMetaDataHeader("CRVAL2", result.Coordinates.Dec,
+                "DEC of reference pixel (deg)"));
             image.MetaData.GenericHeaders.Add(new DoubleMetaDataHeader("CRPIX1", w + 0.5, "X of reference pixel"));
             image.MetaData.GenericHeaders.Add(new DoubleMetaDataHeader("CRPIX2", h + 0.5, "Y of reference pixel"));
             image.MetaData.GenericHeaders.Add(new DoubleMetaDataHeader("CD1_1", cd11, ""));
             image.MetaData.GenericHeaders.Add(new DoubleMetaDataHeader("CD1_2", cd12, ""));
             image.MetaData.GenericHeaders.Add(new DoubleMetaDataHeader("CD2_1", cd21, ""));
             image.MetaData.GenericHeaders.Add(new DoubleMetaDataHeader("CD2_2", cd22, ""));
-            image.MetaData.GenericHeaders.Add(new DoubleMetaDataHeader("CDELT1", Math.Abs(scaleDegPerPix), "X pixel size (deg)"));
-            image.MetaData.GenericHeaders.Add(new DoubleMetaDataHeader("CDELT2", Math.Abs(scaleDegPerPix), "Y pixel size (deg)"));
-            image.MetaData.GenericHeaders.Add(new DoubleMetaDataHeader("CROTA1", result.PositionAngle, "Image twist X axis (deg)"));
-            image.MetaData.GenericHeaders.Add(new DoubleMetaDataHeader("CROTA2", result.PositionAngle, "Image twist Y axis (deg)"));
-            image.MetaData.GenericHeaders.Add(new StringMetaDataHeader("PLTSOLVD1", "T", $"N.I.N.A. {ninaVersion} Plugin: {pluginName}"));
-            image.MetaData.GenericHeaders.Add(new StringMetaDataHeader("PLTSOLVD2", "T", $"Plugin Version: {pluginVersion} using ASTAP"));
+            image.MetaData.GenericHeaders.Add(new DoubleMetaDataHeader("CDELT1", Math.Abs(scaleDegPerPix),
+                "X pixel size (deg)"));
+            image.MetaData.GenericHeaders.Add(new DoubleMetaDataHeader("CDELT2", Math.Abs(scaleDegPerPix),
+                "Y pixel size (deg)"));
+            image.MetaData.GenericHeaders.Add(new DoubleMetaDataHeader("CROTA1", result.PositionAngle,
+                "Image twist X axis (deg)"));
+            image.MetaData.GenericHeaders.Add(new DoubleMetaDataHeader("CROTA2", result.PositionAngle,
+                "Image twist Y axis (deg)"));
+            image.MetaData.GenericHeaders.Add(new StringMetaDataHeader("PLTSOLVD1", "T",
+                $"N.I.N.A. {ninaVersion} Plugin: {pluginName}"));
+            image.MetaData.GenericHeaders.Add(new StringMetaDataHeader("PLTSOLVD2", "T",
+                $"Plugin Version: {pluginVersion} using ASTAP"));
         }
 
         public void Dispose() {
