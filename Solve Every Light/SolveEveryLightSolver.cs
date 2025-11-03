@@ -137,8 +137,12 @@ namespace NINA.Plugin.SolveEveryLight {
 
                 var solverType = profileService.ActiveProfile.PlateSolveSettings.PlateSolverType;
 
-                if (solverType != PlateSolverEnum.ASTAP) {
-                    Notification.ShowWarning("This plugin currently works only with ASTAP. Configure it in Options > Plate Solving.");
+                if (solverType != PlateSolverEnum.ASTAP && solverType != PlateSolverEnum.ASPS) {
+                    Notification.ShowWarning(
+                        "Solve Every Light plugin currently supports only ASTAP and All Sky Plate Solver. " +
+                        "Please configure one of them under Options → Plate Solving."
+                    );
+                    return;
                 }
 
                 applicationStatus.Source = $"Plugin {pluginName}";
