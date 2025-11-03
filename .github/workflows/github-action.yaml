@@ -43,9 +43,8 @@ jobs:
       - name: Build .NET Assemblies
         run: |
           dotnet restore
-          # dotnet build "${{ env.PLUGIN_SLN_NAME }}.sln" -c Release -p:PostBuildEvent= -p:Version=${{ github.ref_name }} -o ./bin/Release
-          dotnet build "NINA.Plugin.SolveEveryLight/NINA.Plugin.SolveEveryLight.csproj" -c Release -p:PostBuildEvent= -p:Version=${{ github.ref_name }} -p:Platform=x64 -o "$PWD/bin/Release"
-
+          dotnet build "${{ env.PLUGIN_SLN_NAME }}.sln" -c Release -p:PostBuildEvent= -p:Version=${{ github.ref_name }} -o ./bin/Release
+          
       # Add all necessary files that the plugin needs to the packages folder - basically all items that are normally in your post build event on your local builds
       - name: Prepare package
         run: |
