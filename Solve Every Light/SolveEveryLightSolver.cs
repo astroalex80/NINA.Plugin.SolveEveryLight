@@ -214,9 +214,9 @@ namespace NINA.Plugin.SolveEveryLight {
                 "Image twist X axis (deg)"));
             image.MetaData.GenericHeaders.Add(new DoubleMetaDataHeader("CROTA2", result.PositionAngle,
                 "Image twist Y axis (deg)"));
-            image.MetaData.GenericHeaders.Add(new StringMetaDataHeader("PLTSOLVD1", "T",
+            image.MetaData.GenericHeaders.Add(new StringMetaDataHeader("PLTSLVD1", "T",
                 $"N.I.N.A. {ninaVersion} Plugin: {pluginName}"));
-            image.MetaData.GenericHeaders.Add(new StringMetaDataHeader("PLTSOLVD2", "T",
+            image.MetaData.GenericHeaders.Add(new StringMetaDataHeader("PLTSLVD2", "T",
                 $"Plugin Version: {pluginVersion} using ASTAP"));
         }
 
